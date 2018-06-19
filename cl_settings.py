@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Integrates git-cl with the Allura issue tracking tool
 # Phil Holmes
 
