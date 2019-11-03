@@ -89,10 +89,9 @@ def update_issue(allura_issue_id, description):
   allura_url += thread_id + "/new"
 
   allura_result = urllib.urlopen (allura_url, data_encoded)
-  if allura_result.getcode() == 200:
-    print 'Ticket %s updated' % allura_result.geturl()
-  else:
-    print 'Update attempt returns error code %s' % (allura_result.getcode())
+  if allura_result.getcode() != 200:
+    print 'Received error code %s when attempting to update %s' % (
+      allura_result.getcode(), allura_url)
     sys.exit(1)
   return issue_id
 
@@ -125,7 +124,9 @@ def get_reporter(issue_text):
 def get_thread_ID(issue_data):
   discussion_pos = issue_data.index('"discussion_thread": ')
   discussion_data = issue_data[discussion_pos:]
-  id_data = discussion_data.index('"_id": ')
-  thread_id = discussion_data[id_data+8:id_data+16]
+  id_key = '"_id": "'
+  id_key_pos = discussion_data.index(id_key)
+  id_str = discussion_data[id_key_pos + len(id_key):]
+  quote_pos = id_str.index('"')
+  thread_id = id_str[0:quote_pos]
   return thread_id
-
