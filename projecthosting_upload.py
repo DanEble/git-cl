@@ -16,11 +16,10 @@ import gdata.data
 import atom.http_core
 import atom.core
 
-def string_is_number(case):
-    try :
-      int(case)
-      return True
-    except :
+def string_is_nonnegative_number(case):
+    try:
+      return int(case) >= 0
+    except:
       return False
 
 class PatchBot():
@@ -141,17 +140,17 @@ class PatchBot():
         print query_string1
         info = raw_input("Please enter a valid tracker issue number\n"
                          "(or enter nothing to create a new issue): ")
-        while (info != '') and (not string_is_number(info)) :
+        while info and (not string_is_nonnegative_number(info)):
             info = raw_input("This is an invalid entry.  Please enter either an issue number (just digits, no spaces) or nothing to create an issue: ")
-        if info == '' :
-            info = -1
-        return int(info)
+        if info:
+            return int(info)
+        return None
 
     def upload(self, issue, patchset, subject="", description="", issue_id=None):
         # NB.  issue is the Rietveld issue; issue_id is the Allura issue
         if not subject:
             subject = "new patch"
-        description = description + "\n\n" + "http://codereview.appspot.com/" + issue
+
         # update or create?
         if not issue_id:
             # Looks for issue number in the description
@@ -159,20 +158,31 @@ class PatchBot():
         if issue_id:
             print "This has been identified with issue "+str(issue_id)+"."
             correct = raw_input("Is this correct? [y/n (y)]")
-            if correct != 'n' :
-                issue_id = allura_issues.update_issue(issue_id, description)
-            else :
-                issue_id = self.query_user(issue_id)
-                if issue_id > 0 :
-                    issue_id = allura_issues.update_issue(issue_id, description)
-                else :
-                    issue_id = allura_issues.create_issue(subject, description)
-        else:
+            if correct == 'n':
+                issue_id = None
+        if not issue_id:
             issue_id = self.query_user(issue_id)
-            if issue_id > 0 :
-                issue_id = allura_issues.update_issue(issue_id, description)
-            else :
-                issue_id = allura_issues.create_issue(subject, description)
+
+        code_review_url = "https://codereview.appspot.com/" + issue
+
+        if issue_id:
+            issue_id = allura_issues.update_issue(issue_id, description,
+                                                  code_review_url)
+        else:
+            # If the subject is repeated as the first paragraph of the
+            # description, eliminate the redundancy.
+            if description.strip() == subject.strip():
+                description = ""
+            elif description.startswith(subject + "\n\n"):
+                description = description[len(subject):].lstrip("\n")
+
+            # An issue number in the subject line is redundant in the
+            # issue tracker (unlike in the code review). Recognize
+            # [Xx]+ as a placeholder for a number that was unknown
+            # when the user entered the subject.
+            subject = re.sub(r"^\s*Issue\s+#?(\d+|[Xx]+):?\s*", "", subject)
+            issue_id = allura_issues.create_issue(subject, description,
+                                                  code_review_url)
         return issue_id
 
 

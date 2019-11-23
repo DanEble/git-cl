@@ -8,10 +8,15 @@ import sys
 
 settings = cl_settings.Settings()
 
-def create_issue(subject, description):
+def create_issue(subject, description, code_review_url=None):
   BEARER_TOKEN = settings.GetToken()
   allura_server = settings.GetTrackerServer()
   allura_api = add_api_string(allura_server)
+
+  if code_review_url:
+    if description:
+      description += '\n\n'
+    description += code_review_url
 
   data = {
     'access_token': BEARER_TOKEN,
@@ -55,12 +60,15 @@ def create_issue(subject, description):
 
   return issue_id
 
-def update_issue(allura_issue_id, description):
+def update_issue(allura_issue_id, comment, code_review_url=None):
   BEARER_TOKEN = settings.GetToken()
   allura_server = settings.GetTrackerServer()
   allura_api = add_api_string(allura_server)
 
   # Set patch status to new
+  ## TODO: Sometimes a new code review is created for an issue that
+  ## already had one.  It would be helpful to update the description
+  ## field to refer to the latest code review instead of the old.
   data = {
     'access_token': BEARER_TOKEN,
     'ticket_form.status': 'Started',
@@ -73,13 +81,18 @@ def update_issue(allura_issue_id, description):
     print "Problem setting patch status for Allura issue"
     sys.exit(1)
 
+  if code_review_url:
+    if comment:
+      comment += '\n\n'
+    comment += code_review_url
+
   # Now get the thread ID so we can add a note to the correct thread
   filehandle = urllib.urlopen (allura_api + str(allura_issue_id))
   issue_data = filehandle.read()
   thread_id = get_thread_ID(issue_data)
   data = {
     'access_token': BEARER_TOKEN,
-    'text': description,
+    'text': comment,
   }
 
   issue_id = get_issue_number(filehandle.geturl())
